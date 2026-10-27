@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');
+const {queryPacket,addresses}=require('./stanza-mdns.cjs');
+const q=queryPacket('esp32-stanza.local');
+assert.equal(q.readUInt16BE(4),1);
+const header=Buffer.alloc(12);header.writeUInt16BE(0x8400,2);header.writeUInt16BE(1,6);
+const name=q.subarray(12,q.length-4),rr=Buffer.alloc(10);rr.writeUInt16BE(1,0);rr.writeUInt16BE(1,2);rr.writeUInt32BE(120,4);rr.writeUInt16BE(4,8);
+const response=Buffer.concat([header,name,rr,Buffer.from([192,168,1,12])]);
+assert.deepEqual(addresses(response,'esp32-stanza.local'),['192.168.1.12']);
+assert.deepEqual(addresses(response,'another.local'),[]);
+assert.deepEqual(addresses(Buffer.from([1]),'esp32-stanza.local'),[]);
+const h=Buffer.alloc(12);h.writeUInt16BE(1,4);h.writeUInt16BE(1,6);
+assert.deepEqual(addresses(Buffer.concat([h,q.subarray(12),Buffer.from([192,12]),rr,Buffer.from([192,168,1,12])]),'esp32-stanza.local'),['192.168.1.12']);
+console.log('OK: scoperta mDNS, nomi compressi, esclusione altri dispositivi e pacchetti non validi.');
