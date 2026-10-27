@@ -11,7 +11,7 @@ $('history-day').value=localDay(new Date());$('history-hour').value='00:00';
 function period(){const hours=Number($('window').value);if(followLive){const to=Date.now();return {from:to-hours*3600000,to};}const from=new Date($('history-day').value+'T'+($('history-hour').value||'00:00')+':00').getTime();const end=new Date(from);if(hours===24)end.setDate(end.getDate()+1);else end.setHours(end.getHours()+hours);return {from,to:end.getTime()};}
 const fmt=(value,digits=1)=>Number.isFinite(value)?value.toLocaleString(locale(),{minimumFractionDigits:digits,maximumFractionDigits:digits}):'—';
 function valid(p){return p?.valid===true&&p.protocol===2&&p.type==='climate'&&Number.isFinite(p.temperature)&&Number.isFinite(p.humidity);}
-function fresh(){return state.connected&&valid(state.packet)&&Date.now()-state.packet.receivedAt<10000;}
+function fresh(){return state.connected&&valid(state.packet)&&Date.now()-state.packet.receivedAt<Math.max(10000,(Number(state.packet.readIntervalMs)||2500)*2+5000);}
 function absolute(t,h){return 216.7*(h/100*6.112*Math.exp(17.67*t/(t+243.5)))/(273.15+t);}
 function weatherText(code){if(code===0)return t("Clear sky");if(code<=3)return t("Partly cloudy");if([45,48].includes(code))return t("Fog");if(code>=51&&code<=57)return t("Drizzle");if(code>=61&&code<=67)return t("Rain");if(code>=71&&code<=77)return t("Snow");if(code>=80&&code<=82)return t("Rain showers");if(code>=85&&code<=86)return t("Snow showers");if(code>=95)return t("Thunderstorm");return t("Current weather");}
 function render(){
@@ -21,7 +21,7 @@ function render(){
  $('read-time').textContent=live?new Date(p.receivedAt).toLocaleTimeString(locale()):t("WAITING");
  $('humidity-label').textContent=live?(p.humidity<30?t("LOW HUMIDITY"):p.humidity<=50?t("WITHIN REFERENCE RANGE"):p.humidity<60?t("ABOVE REFERENCE RANGE"):t("HIGH HUMIDITY")):t("NO READING");
  $('humidity-marker').hidden=!live;if(live)$('humidity-marker').style.left=p.humidity+'%';
- text('device-message',live?(p.transport==='wifi'?t("Connected over Wi-Fi."):t("Connected over USB · reading every 2.5 seconds.")):p&&!p.valid?t(p.error):t(state.message)||t("Connect the ESP32 over Wi-Fi or USB to receive readings."));
+ text('device-message',live?(p.transport==='wifi'?t("Connected over Wi-Fi."):t("Connected over USB.")):p&&!p.valid?t(p.error):t(state.message)||t("Connect the ESP32 over Wi-Fi or USB to receive readings."));
  $('city').textContent=state.settings.city.name;$('outside-temperature').textContent=fmt(c?.temperature_2m);
  $('outside-humidity').textContent=Number.isFinite(c?.relative_humidity_2m)?fmt(c.relative_humidity_2m,0)+'%':'—';
  $('wind').textContent=Number.isFinite(c?.wind_speed_10m)?fmt(c.wind_speed_10m,0)+' km/h':'—';
@@ -106,7 +106,7 @@ function renderRecorder(){
  const r=state.recorder||{};let text;
  if(!r.supported)text=t("Local history active. Update the firmware to enable autonomous recording.");
  else if(!r.ready)text=t("Device recording unavailable: ")+t(r.error||'storage not ready');
- else text=t("ESP32: one sample every 30 s, approximately 7 days of storage. ")+t(r.message||'Autonomous recording active.')+(r.imported?(r.imported===1?t(" Imported one sample."):t(" Imported ")+r.imported+t(" samples.")):'')+(r.unplaced?' '+r.unplaced+t(" samples have no reliable timestamp and are excluded from the chart."):'')+(r.missing?' '+r.missing+t(" samples were overwritten before synchronization."):'');
+ else text=t("ESP32: sample interval ")+String(r.intervalSeconds||60)+t(" s; buffer capacity ")+String(r.capacity||20160)+t(" samples. ")+t(r.message||'Autonomous recording active.')+(r.imported?(r.imported===1?t(" Imported one sample."):t(" Imported ")+r.imported+t(" samples.")):'')+(r.unplaced?' '+r.unplaced+t(" samples have no reliable timestamp and are excluded from the chart."):'')+(r.missing?' '+r.missing+t(" samples were overwritten before synchronization."):'');
  if($('recorder-status').textContent!==text)$('recorder-status').textContent=text;
 }
 function renderAdvice(){

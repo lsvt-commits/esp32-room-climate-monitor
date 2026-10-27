@@ -5,7 +5,8 @@
 #include <stddef.h>
 
 namespace ClimateLog {
-constexpr uint32_t CAPACITY=20160; // Seven days, one sample every 30 seconds.
+constexpr uint32_t SAMPLE_INTERVAL_MS=60000;
+constexpr uint32_t CAPACITY=20160; // Fourteen days, one sample every minute.
 struct Record {uint32_t sequence,boot,epoch,uptime;int16_t temperature;uint16_t humidity;uint32_t crc;};
 static_assert(sizeof(Record)==24,"Unexpected record size");
 bool ready=false,repaired=false;uint32_t latest=0,boot=0,lastWrite=0,unplaced=0;String generation,error;
@@ -23,7 +24,7 @@ void begin(){
 }
 bool initialize(){if(ready)return true;if(!LittleFS.format())return false;begin();return ready;}
 bool append(float temperature,float humidity,uint32_t now){
- if(!ready||uint32_t(now-lastWrite)<30000)return false;
+ if(!ready||(latest&&uint32_t(now-lastWrite)<SAMPLE_INTERVAL_MS))return false;
  Record r={latest+1,boot,epoch(),uint32_t(esp_timer_get_time()/1000000),int16_t(lroundf(temperature*10)),uint16_t(lroundf(humidity*10)),0};r.crc=checksum(r);
  File file=LittleFS.open("/stanza-log.bin",LittleFS.exists("/stanza-log.bin")?"r+":"w+");
  if(!file||!file.seek(((r.sequence-1)%CAPACITY)*sizeof(r))||file.write(reinterpret_cast<const uint8_t*>(&r),sizeof(r))!=sizeof(r)){ready=false;error="Storage write failed";file.close();return false;}
@@ -36,7 +37,7 @@ void repairTime(){
  uint32_t offset=epoch()-uint32_t(esp_timer_get_time()/1000000);File file=LittleFS.open("/stanza-log.bin","r+");if(!file)return;
  unplaced=0;Record r;for(uint32_t seq=oldest();seq&&seq<=latest;++seq){if(!read(file,seq,r))continue;if(!r.epoch&&r.boot==boot){r.epoch=offset+r.uptime;r.crc=checksum(r);file.seek(((seq-1)%CAPACITY)*sizeof(r));file.write(reinterpret_cast<const uint8_t*>(&r),sizeof(r));}if(!r.epoch)unplaced++;}file.flush();file.close();
 }
-String status(){return "{\"supported\":true,\"ready\":"+String(ready?"true":"false")+",\"generation\":\""+generation+"\",\"latest\":"+String(latest)+",\"oldest\":"+String(oldest())+",\"capacity\":"+String(CAPACITY)+",\"intervalSeconds\":30,\"unplaced\":"+String(unplaced)+",\"clockReady\":"+String(epoch()?"true":"false")+",\"error\":\""+error+"\"}";}
+String status(){return "{\"supported\":true,\"ready\":"+String(ready?"true":"false")+",\"generation\":\""+generation+"\",\"latest\":"+String(latest)+",\"oldest\":"+String(oldest())+",\"capacity\":"+String(CAPACITY)+",\"intervalSeconds\":"+String(SAMPLE_INTERVAL_MS/1000)+",\"unplaced\":"+String(unplaced)+",\"clockReady\":"+String(epoch()?"true":"false")+",\"error\":\""+error+"\"}";}
 String history(uint32_t after){
  repairTime();String response="{\"logger\":"+status()+",\"rows\":[";uint32_t first=max(after+1,oldest()),next=after;int count=0;Record r;File file=LittleFS.open("/stanza-log.bin","r");
  for(uint32_t seq=first;file&&seq&&seq<=latest&&count<128;++seq){next=seq;if(!read(file,seq,r))continue;if(count++)response+=',';response+="{\"id\":\""+generation+":"+String(r.sequence)+"\",\"sequence\":"+String(r.sequence)+",\"at\":"+(r.epoch?String(uint64_t(r.epoch)*1000):String("null"))+",\"temperature\":"+String(r.temperature/10.0f,1)+",\"humidity\":"+String(r.humidity/10.0f,1)+",\"origin\":\"esp32\"}";}

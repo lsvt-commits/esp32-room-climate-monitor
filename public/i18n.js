@@ -1,6 +1,11 @@
 (function (root) {
   'use strict';
   const italian = {
+  "Connected over USB.": "USB attiva.",
+  "ESP32: sample interval ": "ESP32: intervallo campioni ",
+  " s; buffer capacity ": " s; capacità memoria ",
+  " samples. ": " campioni. ",
+  "Select another date or return to live view.": "Scegli un altro giorno oppure torna in diretta.",
   "INDOOR": "INTERNO",
   "TEMPERATURE AND HUMIDITY": "TEMPERATURA E UMIDITÀ",
   "Skip to readings": "Vai alle misure",

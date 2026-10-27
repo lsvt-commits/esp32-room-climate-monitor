@@ -17,6 +17,10 @@ listeners.initial({data:JSON.stringify({connected:true,packet:{...reading,receiv
 assert.equal(nodes.get('temperature').textContent,'20.0');assert.equal(nodes.get('humidity').textContent,'50');assert.equal(nodes.get('postcard').disabled,false);assert.equal(nodes.get('difference').textContent,'+10.0');
 listeners.packet({data:JSON.stringify({...reading,receivedAt:Date.now()-12000})});
 assert.equal(nodes.get('temperature').textContent,'—');assert.equal(nodes.get('postcard').disabled,true);
+listeners.packet({data:JSON.stringify({...reading,readIntervalMs:60000,receivedAt:Date.now()-45000})});
+assert.equal(nodes.get('temperature').textContent,'20.0');
+listeners.packet({data:JSON.stringify({...reading,readIntervalMs:60000,receivedAt:Date.now()-130000})});
+assert.equal(nodes.get('temperature').textContent,'—');
 listeners.packet({data:JSON.stringify({...reading,valid:false,temperature:null,error:'Sensor unavailable',receivedAt:Date.now()})});
 assert.equal(nodes.get('temperature').textContent,'—');assert.equal(nodes.get('device-message').textContent,'Sensor unavailable');
 listeners.device({data:JSON.stringify({connected:false,message:'USB disconnected'})});assert.equal(nodes.get('device-message').textContent,'USB disconnected');

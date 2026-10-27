@@ -20,16 +20,17 @@ const files={'/':['public/index.html','text/html'],'/i18n.js':['public/i18n.js',
 function json(res,code,data){res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 function send(res,event,data){res.write('event: '+event+'\ndata: '+JSON.stringify(data)+'\n\n');}
 function broadcast(event,data){for(const client of clients)send(client,event,data);}
-function status(){return {...device,recorder,connected:Date.now()-lastReceived<10000,packet,settings,weather,weatherError,comparison:Date.now()-lastReceived<10000?compareAir(packet,weather):null};}
+const readingTimeout=()=>Math.max(10000,(Number(packet?.readIntervalMs)||2500)*2+5000);
+function status(){const connected=Date.now()-lastReceived<readingTimeout();return {...device,recorder,connected,packet,settings,weather,weatherError,comparison:connected?compareAir(packet,weather):null};}
 function ingest(data,transport,port){
  if(data?.protocol!==2||data.type!=='climate'||typeof data.valid!=='boolean')return;
  if(network&&privateIP(data.ip)&&network.ip!==data.ip){network.ip=data.ip;save('network.json',network);}
  if(transport==='usb'&&Date.now()-lastWifi<8000)return;
  const sample=data.sampleId??data.uptime;
- if(transport==='wifi'){if(sample===lastSample&&packet?.transport==='wifi')return;lastWifi=Date.now();}
+ if(transport==='wifi'){lastWifi=Date.now();if(sample===lastSample&&packet?.transport==='wifi')return;}
  lastSample=sample;lastReceived=Date.now();packet={...data,receivedAt:lastReceived,transport};device={connected:true,transport,port,message:validReading(packet)?'DHT11 connected over '+(transport==='wifi'?'Wi-Fi':'USB'):packet.error||'Sensor reading failed'};
  if(data.logger)recorder={...recorder,...data.logger};
- if(validReading(packet)&&!data.logger?.supported&&lastReceived-lastStored>=30000){diary.import([{at:lastReceived,temperature:packet.temperature,humidity:packet.humidity,origin:'pc'}]);lastStored=lastReceived;broadcast('history',{updated:true});}
+ if(validReading(packet)&&!data.logger?.supported&&lastReceived-lastStored>=60000){diary.import([{at:lastReceived,temperature:packet.temperature,humidity:packet.humidity,origin:'pc'}]);lastStored=lastReceived;broadcast('history',{updated:true});}
  broadcast('packet',packet);
 }
 async function pollNetwork(){
@@ -109,7 +110,7 @@ const server=http.createServer(async(req,res)=>{
  }
  json(res,405,{error:'Method not allowed'});
 });
-setInterval(()=>{for(const client of clients)client.write(': heartbeat\n\n');if(device.connected&&Date.now()-lastReceived>=10000){device={...device,connected:false,message:'Readings stopped. Check the device connection.'};broadcast('device',device);}},3000);
+setInterval(()=>{for(const client of clients)client.write(': heartbeat\n\n');if(device.connected&&Date.now()-lastReceived>=readingTimeout()){device={...device,connected:false,message:'Readings stopped. Check the device connection.'};broadcast('device',device);}},3000);
 setInterval(()=>updateWeather(),600000);
 server.listen(8000,'127.0.0.1',()=>{console.log('ESP32 Room Climate Monitor — http://localhost:8000');if((process.env.CLIMATE_DISABLE_USB||process.env.STANZA_DISABLE_USB)!=='1')startBridge();pollNetwork();updateWeather();});
 function shutdown(){stopping=true;bridge?.kill();server.close();process.exit(0);}

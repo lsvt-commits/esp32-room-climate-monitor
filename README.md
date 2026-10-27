@@ -24,8 +24,8 @@ The device keeps recording while the computer is off. When the server starts aga
 
 | Feature | Description |
 |---|---|
-| Live readings | Temperature and relative humidity every 2.5 seconds. Wi-Fi is preferred, with USB as a fallback. |
-| Autonomous logging | One sample every 30 seconds, stored in a persistent circular buffer on the ESP32. |
+| Live readings | Temperature and relative humidity once per minute. Wi-Fi is preferred, with USB as a fallback. |
+| Autonomous logging | One sample per minute, stored in a persistent circular buffer on the ESP32. |
 | Synchronization | Automatic Wi-Fi import with stable sample identifiers to prevent duplicates. |
 | Local history | Daily JSON files without automatic expiration, date/time selection and 1/6/24-hour views. |
 | Chart inspection | Mouse, touch, keyboard and button controls. Gaps longer than 90 seconds are not interpolated. |
@@ -57,8 +57,8 @@ The server listens on the computer's loopback interface. Responsive layout does 
 
 ```mermaid
 flowchart LR
-    A[DHT11] -->|read every 2.5 s| B[ESP32]
-    B -->|sample every 30 s| C[LittleFS flash buffer]
+    A[DHT11] -->|read every 60 s| B[ESP32]
+    B -->|sample every 60 s| C[LittleFS flash buffer]
     B -->|Wi-Fi or USB live readings| D[Local Node.js server]
     C -->|Wi-Fi history import| D
     E[Open-Meteo] --> D
@@ -66,7 +66,7 @@ flowchart LR
     D -->|Server-Sent Events| G[Browser dashboard]
 ```
 
-The device buffer holds **20,160 samples**, approximately **seven days** at 30-second intervals. Once full, it overwrites the oldest samples. Start the server at least once every seven days to import them before they are overwritten.
+The device buffer holds **20,160 samples**, approximately **fourteen days** at 60-second intervals. Once full, it overwrites the oldest samples. Start the server at least once every fourteen days to import them before they are overwritten.
 
 The ESP32 must remain powered to collect data. Samples already written to flash survive a restart. The computer archive has no automatic retention limit. History synchronization requires Wi-Fi and the configured device token; USB provides an alternative for live readings.
 
@@ -157,6 +157,8 @@ CLIMATE_SERIAL_PORT=/dev/ttyUSB0 npm start
 Credentials, personal history and compiled firmware are excluded from Git. Firmware binaries may contain the values from `wifi_secrets.h` and should not be published.
 
 Indoor measurements remain on the device and computer. Weather requests send the selected city's coordinates to Open-Meteo. The interface loads fonts from Google Fonts, with system-font fallbacks. Language preference is stored in the browser.
+
+The one-minute sampling interval follows community feedback on the initial version: faster sampling adds little value for room conditions and increases flash writes. Existing 30-second records remain readable; the buffer reaches fourteen days only after older, denser samples have been replaced. Upload the updated firmware to apply the new interval.
 
 ## Tests
 

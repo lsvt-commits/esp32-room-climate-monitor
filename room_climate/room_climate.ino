@@ -9,7 +9,7 @@ constexpr uint8_t SENSOR_PIN=18;
 DHT dht(SENSOR_PIN,DHT11);
 WebServer server(80);
 uint32_t lastRead=0,lastReconnect=0;
-bool networkStarted=false;
+bool networkStarted=false,sensorRead=false;
 String lastPacket;
 void readSensor(uint32_t now){
  float humidity=dht.readHumidity(),temperature=dht.readTemperature();
@@ -20,7 +20,7 @@ void readSensor(uint32_t now){
  else snprintf(values,sizeof(values),"\"valid\":false,\"temperature\":null,\"humidity\":null");
  lastPacket="{\"protocol\":2,\"type\":\"climate\","+String(values)+",\"uptime\":"+String(now)+",\"sampleId\":"+String(now)+",\"sensor\":\"DHT11\",\"pin\":18,\"wifi\":"+(WiFi.status()==WL_CONNECTED?"true":"false")+",\"ip\":\""+(WiFi.status()==WL_CONNECTED?WiFi.localIP().toString():String(""))+"\"";
  if(!valid)lastPacket+=",\"error\":\"Sensor not responding. Check S to D18, + to 3V3 and - to GND.\"";
- lastPacket+=",\"logger\":"+ClimateLog::status()+"}";
+ lastPacket+=",\"readIntervalMs\":"+String(ClimateLog::SAMPLE_INTERVAL_MS)+",\"logger\":"+ClimateLog::status()+"}";
  Serial.println(lastPacket);
 }
 void setup(){
@@ -59,6 +59,6 @@ void loop(){
   if(networkStarted){MDNS.end();server.stop();networkStarted=false;}
   if(now-lastReconnect>15000){lastReconnect=now;WiFi.reconnect();}
  }
- if(now-lastRead>=2500){lastRead=now;readSensor(now);}
+ if(!sensorRead||now-lastRead>=ClimateLog::SAMPLE_INTERVAL_MS){sensorRead=true;lastRead=now;readSensor(now);}
  delay(1);
 }

@@ -14,7 +14,7 @@
 
 ## Device recording
 
-The device stores one valid sample every 30 seconds. Each binary record occupies 24 bytes:
+The device stores one valid sample per minute. Each binary record occupies 24 bytes:
 
 | Field | Size | Purpose |
 |---|---:|---|
@@ -26,7 +26,7 @@ The device stores one valid sample every 30 seconds. Each binary record occupies
 | `humidity` | 2 bytes | Relative humidity in tenths of a percentage point. |
 | `crc` | 4 bytes | Integrity field, implemented as a 32-bit FNV-1a checksum. |
 
-Capacity is 20,160 records: **483,840 bytes**, approximately seven days of valid samples. Slots are reused in a circular buffer. The checksum helps reject incomplete records after power interruption; it does not authenticate data.
+Capacity is 20,160 records: **483,840 bytes**, approximately fourteen days of valid samples. Slots are reused in a circular buffer. The checksum helps reject incomplete records after power interruption; it does not authenticate data.
 
 A generation identifier stored in the filesystem distinguishes a newly initialized log from the computer's previous synchronization cursor.
 
@@ -54,8 +54,8 @@ Initialization is not required for every update. Do not use `erase_flash` or upl
 
 ## History synchronization
 
-1. Live Wi-Fi readings are polled every 2.5 seconds.
-2. Approximately every 15 seconds, history is requested in pages of 128 records.
+1. The sensor is sampled once per minute. The server polls its cached Wi-Fi reading every 2.5 seconds without triggering another sensor measurement.
+2. After a new reading arrives, history is requested in pages of 128 records, with a minimum 15-second interval between synchronization attempts.
 3. Stable `generation:sequence` identifiers identify duplicates.
 4. The daily archive is written before advancing `storage/sync.json`.
 5. After an interruption, a page can be requested again without duplicating samples.
