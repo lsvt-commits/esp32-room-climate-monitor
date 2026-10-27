@@ -14,7 +14,7 @@ Temperature and humidity monitoring with autonomous logging and a local web dash
 
 </div>
 
-![Desktop dashboard with indoor readings, outdoor weather and temperature history](docs/images/desktop.png)
+![English dashboard with indoor readings, outdoor weather and absolute humidity comparison](docs/images/desktop-en.png)
 
 ## Overview
 
@@ -35,7 +35,7 @@ The device keeps recording while the computer is off. When the server starts aga
 
 ## Measurement history
 
-![History controls and temperature chart with minimum, maximum and net change](docs/images/diary.png)
+![History controls and temperature chart with minimum, maximum and net change](docs/images/diary-en.png)
 
 Select a date and starting time, then move between intervals with the navigation buttons. The chart displays minimum, maximum and net change for the selected period.
 
@@ -44,7 +44,7 @@ Select a date and starting time, then move between intervals with the navigation
 
 <br>
 <div align="center">
-<img src="docs/images/mobile.png" alt="English dashboard on a phone with section navigation and sensor readings" width="320">
+<img src="docs/images/mobile-en.png" alt="English dashboard on a phone with section navigation and sensor readings" width="320">
 </div>
 
 The layout has been checked from 320 to 1440 px and in landscape orientation. Touch targets are at least 44 px. The SVG chart recalculates its geometry instead of scaling down desktop labels. Indoor/Outdoor/History links appear only in single-column layouts.
