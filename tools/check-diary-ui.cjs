@@ -3,19 +3,20 @@ const failures=[],listeners={},requests=[];const vc=new VirtualConsole();vc.on('
 const dom=new JSDOM(fs.readFileSync('public/index.html','utf8'),{url:'http://localhost:8000',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc}),w=dom.window,d=w.document;
 w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
 const start=Date.now()-2*86400000,rows=[{at:start,temperature:16.1,humidity:61,origin:'esp32'},{at:start+30000,temperature:16.3,humidity:60,origin:'esp32'}];
-w.fetch=async url=>{requests.push(url);return {ok:true,json:async()=>url.startsWith('/api/days')?{days:[new Date(start).toLocaleDateString('en-CA')],recorder:{supported:true,ready:true,message:'Archivio sincronizzato'}}:rows};};
+w.fetch=async url=>{requests.push(url);return {ok:true,json:async()=>url.startsWith('/api/days')?{days:[new Date(start).toLocaleDateString('en-CA')],recorder:{supported:true,ready:true,message:'History synchronized'}}:rows};};
 w.EventSource=class{addEventListener(name,cb){listeners[name]=cb;}};
-w.eval(fs.readFileSync('public/advice.js','utf8'));w.eval(fs.readFileSync('public/app.js','utf8'));
+w.eval(fs.readFileSync('public/i18n.js','utf8'));w.eval(fs.readFileSync('public/advice.js','utf8'));w.eval(fs.readFileSync('public/app.js','utf8'));
 const tick=()=>new Promise(r=>setImmediate(r));const click=id=>d.getElementById(id).click();
 (async()=>{
  listeners.initial({data:JSON.stringify({connected:true,packet:{protocol:2,type:'climate',valid:true,temperature:16.3,humidity:61,receivedAt:Date.now()},settings:{city:{name:'Torino'}}})});for(let i=0;i<5;i++)await tick();
- click('humidity-help');assert(d.getElementById('humidity-dialog').open);assert.match(d.getElementById('humidity-advice-title').textContent,/umida/);assert.match(d.getElementById('humidity-advice').textContent,/vestiti/);
- click('temperature-help');assert.match(d.getElementById('temperature-advice').textContent,/termostato/);
+ click('humidity-help');assert(d.getElementById('humidity-dialog').open);assert.match(d.getElementById('humidity-advice-title').textContent,/High humidity/);assert.match(d.getElementById('humidity-advice').textContent,/clothes/);
+ click('temperature-help');assert.match(d.getElementById('temperature-advice').textContent,/thermostat/);
  d.getElementById('history-day').value='2026-10-24';d.getElementById('history-day').dispatchEvent(new w.Event('change'));for(let i=0;i<5;i++)await tick();
  assert.equal(d.getElementById('history-live').getAttribute('aria-pressed'),'false');assert.match(d.getElementById('history-range').textContent,/24\/10\/2026/);
  d.getElementById('history-hour').value='09:00';d.getElementById('window').value='1';d.getElementById('window').dispatchEvent(new w.Event('change'));for(let i=0;i<5;i++)await tick();assert.match(d.getElementById('history-range').textContent,/09:00/);
  click('history-prev');for(let i=0;i<5;i++)await tick();assert.equal(d.getElementById('history-hour').value,'08:00');
- assert.match(d.getElementById('history-export').getAttribute('href'),/from=\d+&to=\d+/);
+ const lang=d.getElementById('language-switch');lang.value='it';lang.dispatchEvent(new w.Event('change'));await tick();assert.equal(d.documentElement.lang,'it');assert.equal(d.getElementById('temperature').textContent,'16,3');assert.match(d.getElementById('humidity-advice-title').textContent,/Umidità elevata/);assert.equal(d.getElementById('history-hour').value,'08:00');assert.equal(w.localStorage.getItem('roomClimate.language'),'it');lang.value='en';lang.dispatchEvent(new w.Event('change'));await tick();assert.equal(d.documentElement.lang,'en');assert.equal(d.getElementById('temperature').textContent,'16.3');
+  assert.match(d.getElementById('history-export').getAttribute('href'),/from=\d+&to=\d+/);
  click('history-live');for(let i=0;i<5;i++)await tick();assert.equal(d.getElementById('history-live').getAttribute('aria-pressed'),'true');
  assert.equal(failures.length,0,failures.join('\n'));console.log('OK: real DOM date/hour navigation, previous interval, live mode, export range and contextual advice dialogs.');
  dom.window.close();

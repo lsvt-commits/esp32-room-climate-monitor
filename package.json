@@ -1,16 +1,16 @@
 {
-  "name": "stanza",
+  "name": "esp32-room-climate-monitor",
   "version": "1.0.0",
   "private": true,
-  "description": "Un osservatorio domestico con ESP32, DHT11 e un diario locale del clima.",
+  "description": "ESP32 and DHT11 temperature/humidity monitoring with autonomous logging and a local dashboard.",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "start": "node server.cjs",
-    "check": "node --check server.cjs && node --check public/app.js && node --check public/advice.js",
+    "check": "node --check server.cjs && node --check public/app.js && node --check public/i18n.js && node --check public/advice.js && node --check public/postcard.js",
     "test": "node tools/check.cjs && node tools/check-diary.cjs && node tools/check-mdns.cjs",
-    "test:ui": "node tools/check-diary-ui.cjs"
+    "test:ui": "node tools/check-diary-ui.cjs && node tools/check-i18n.cjs && node tools/check-postcard.cjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

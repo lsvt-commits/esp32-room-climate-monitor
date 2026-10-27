@@ -13,10 +13,10 @@ try{
  assert.equal(dayKey(Date.parse('2026-03-28T23:30:00Z')),'2026-03-29','Local date before DST change');
  store.import([{at:first+90000,temperature:19,humidity:57,id:'generation:3'}]);
  const day=dayKey(first);fs.writeFileSync(path.join(root,'diary',day+'.json'),'broken');assert(store.read(day).length>=3,'Corrupt primary recovers from backup');
- assert.match(advice.humidity({temperature:20,humidity:25}).title,/secca/);
- assert.match(advice.humidity({temperature:20,humidity:45}).title,/riferimento/);
- assert.match(advice.humidity({temperature:20,humidity:61},{temperature_2m:5,relative_humidity_2m:90}).tips.join(' '),/meno vapore fuori/);
- assert.match(advice.humidity({temperature:20,humidity:61},{temperature_2m:30,relative_humidity_2m:90}).tips.join(' '),/più vapore/);
- assert.match(advice.humidity(null).title,/Aspettiamo/);assert.match(advice.temperature({temperature:16}).join(' '),/18 °C/);
+ assert.match(advice.humidity({temperature:20,humidity:25}).title,/Low humidity/);
+ assert.match(advice.humidity({temperature:20,humidity:45}).title,/reference range/);
+ assert.match(advice.humidity({temperature:20,humidity:61},{temperature_2m:5,relative_humidity_2m:90}).tips.join(' '),/Outdoor absolute humidity is lower/);
+ assert.match(advice.humidity({temperature:20,humidity:61},{temperature_2m:30,relative_humidity_2m:90}).tips.join(' '),/Outdoor absolute humidity is higher/);
+ assert.match(advice.humidity(null).title,/No recent reading/);assert.match(advice.temperature({temperature:16}).join(' '),/18 °C/);
  console.log('OK: daily persistence, recovery, idempotent import, range queries, Rome DST dates, invalid timestamps and practical advice.');
 }finally{assert.equal(path.dirname(path.resolve(root)),path.resolve(__dirname,'..'));fs.rmSync(root,{recursive:true,force:true});}

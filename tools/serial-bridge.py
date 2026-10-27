@@ -7,18 +7,18 @@ while True:
     connection=None
     try:
         ports=list(list_ports.comports())
-        requested=os.environ.get("STANZA_SERIAL_PORT")
+        requested=os.environ.get("CLIMATE_SERIAL_PORT") or os.environ.get("STANZA_SERIAL_PORT")
         if requested:
             device=next((p for p in ports if p.device==requested),None)
         else:
             candidates=[p for p in ports if p.vid in (0x0403,0x10C4,0x1A86,0x303A)]
             device=candidates[0] if len(candidates)==1 else None
             if len(candidates)>1:
-                emit({"kind":"status","connected":False,"message":"Più schede USB rilevate: imposta STANZA_SERIAL_PORT per scegliere quella di STANZA."})
+                emit({"kind":"status","connected":False,"message":"Multiple USB devices found. Set CLIMATE_SERIAL_PORT to select the sensor."})
                 time.sleep(2)
                 continue
         if device is None:
-            emit({"kind":"status","connected":False,"message":"ESP32 non rilevato. Collega il cavo USB."})
+            emit({"kind":"status","connected":False,"message":"ESP32 not detected. Connect the USB data cable."})
             time.sleep(2)
             continue
         connection=serial.Serial()
@@ -28,7 +28,7 @@ while True:
         connection.dtr=False
         connection.rts=False
         connection.open()
-        emit({"kind":"status","connected":False,"port":device.device,"message":"USB aperta. In attesa del DHT11…"})
+        emit({"kind":"status","connected":False,"port":device.device,"message":"USB connected. Waiting for DHT11…"})
         buffer=bytearray()
         while True:
             buffer.extend(connection.read_until(b"\n",size=2048))
@@ -43,7 +43,7 @@ while True:
                     pass
             if len(buffer)>8192:buffer.clear()
     except (serial.SerialException,OSError) as error:
-        emit({"kind":"status","connected":False,"message":"USB non disponibile. Chiudi il Serial Monitor di Arduino.","detail":str(error)})
+        emit({"kind":"status","connected":False,"message":"USB unavailable. Close the Arduino Serial Monitor.","detail":str(error)})
         time.sleep(2)
     finally:
         if connection is not None:connection.close()

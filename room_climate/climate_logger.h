@@ -4,7 +4,7 @@
 #include <time.h>
 #include <stddef.h>
 
-namespace StanzaLog {
+namespace ClimateLog {
 constexpr uint32_t CAPACITY=20160; // Seven days, one sample every 30 seconds.
 struct Record {uint32_t sequence,boot,epoch,uptime;int16_t temperature;uint16_t humidity;uint32_t crc;};
 static_assert(sizeof(Record)==24,"Unexpected record size");
@@ -15,18 +15,18 @@ uint32_t epoch(){time_t now=time(nullptr);return now>=1767225600?uint32_t(now):0
 bool read(File& file,uint32_t sequence,Record& r){if(!sequence||!file.seek(((sequence-1)%CAPACITY)*sizeof(r)))return false;return file.read(reinterpret_cast<uint8_t*>(&r),sizeof(r))==sizeof(r)&&valid(r)&&r.sequence==sequence;}
 uint32_t oldest(){return latest>CAPACITY?latest-CAPACITY+1:(latest?1:0);}
 void begin(){
- boot=esp_random();ready=LittleFS.begin(false);if(!ready){error="Memoria da inizializzare";return;}
+ boot=esp_random();ready=LittleFS.begin(false);if(!ready){error="Storage requires initialization";return;}
  File file=LittleFS.open("/stanza-log.bin","r");Record r;
  if(file){while(file.read(reinterpret_cast<uint8_t*>(&r),sizeof(r))==sizeof(r))if(valid(r)){if(r.sequence>latest)latest=r.sequence;if(!r.epoch)unplaced++;}file.close();}
  File id=LittleFS.open("/stanza-log-id.txt","r");if(id){generation=id.readString();id.close();}
- if(generation.isEmpty()){generation=String(esp_random(),HEX)+String(esp_random(),HEX);id=LittleFS.open("/stanza-log-id.txt","w");if(!id||id.print(generation)!=generation.length()){ready=false;error="Impossibile salvare identificatore archivio";}id.close();}
+ if(generation.isEmpty()){generation=String(esp_random(),HEX)+String(esp_random(),HEX);id=LittleFS.open("/stanza-log-id.txt","w");if(!id||id.print(generation)!=generation.length()){ready=false;error="Unable to save the history identifier";}id.close();}
 }
 bool initialize(){if(ready)return true;if(!LittleFS.format())return false;begin();return ready;}
 bool append(float temperature,float humidity,uint32_t now){
  if(!ready||uint32_t(now-lastWrite)<30000)return false;
  Record r={latest+1,boot,epoch(),uint32_t(esp_timer_get_time()/1000000),int16_t(lroundf(temperature*10)),uint16_t(lroundf(humidity*10)),0};r.crc=checksum(r);
  File file=LittleFS.open("/stanza-log.bin",LittleFS.exists("/stanza-log.bin")?"r+":"w+");
- if(!file||!file.seek(((r.sequence-1)%CAPACITY)*sizeof(r))||file.write(reinterpret_cast<const uint8_t*>(&r),sizeof(r))!=sizeof(r)){ready=false;error="Scrittura memoria fallita";file.close();return false;}
+ if(!file||!file.seek(((r.sequence-1)%CAPACITY)*sizeof(r))||file.write(reinterpret_cast<const uint8_t*>(&r),sizeof(r))!=sizeof(r)){ready=false;error="Storage write failed";file.close();return false;}
  file.flush();file.close();latest=r.sequence;lastWrite=now;if(!r.epoch)unplaced++;return true;
 }
 void repairTime(){

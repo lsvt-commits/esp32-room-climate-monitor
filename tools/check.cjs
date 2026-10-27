@@ -14,10 +14,10 @@ const listeners={},context=vm.createContext({document,console,Date,Number,Math,J
 vm.runInContext(fs.readFileSync('public/app.js','utf8'),context);
 assert.equal(nodes.get('temperature').textContent,'—');
 listeners.initial({data:JSON.stringify({connected:true,packet:{...reading,receivedAt:Date.now()},settings:{city:{name:'Torino'}},weather:{current:{temperature_2m:10,relative_humidity_2m:80,weather_code:0}}})});
-assert.equal(nodes.get('temperature').textContent,'20,0');assert.equal(nodes.get('humidity').textContent,'50');assert.equal(nodes.get('postcard').disabled,false);assert.equal(nodes.get('difference').textContent,'+10,0');
+assert.equal(nodes.get('temperature').textContent,'20.0');assert.equal(nodes.get('humidity').textContent,'50');assert.equal(nodes.get('postcard').disabled,false);assert.equal(nodes.get('difference').textContent,'+10.0');
 listeners.packet({data:JSON.stringify({...reading,receivedAt:Date.now()-12000})});
 assert.equal(nodes.get('temperature').textContent,'—');assert.equal(nodes.get('postcard').disabled,true);
-listeners.packet({data:JSON.stringify({...reading,valid:false,temperature:null,error:'Sensore assente',receivedAt:Date.now()})});
-assert.equal(nodes.get('temperature').textContent,'—');assert.equal(nodes.get('device-message').textContent,'Sensore assente');
-listeners.device({data:JSON.stringify({connected:false,message:'USB scollegata'})});assert.equal(nodes.get('device-message').textContent,'USB scollegata');
-console.log('OK: letture valide/errate, umidità assoluta, aggiornamento UI, dati scaduti e USB scollegata.');
+listeners.packet({data:JSON.stringify({...reading,valid:false,temperature:null,error:'Sensor unavailable',receivedAt:Date.now()})});
+assert.equal(nodes.get('temperature').textContent,'—');assert.equal(nodes.get('device-message').textContent,'Sensor unavailable');
+listeners.device({data:JSON.stringify({connected:false,message:'USB disconnected'})});assert.equal(nodes.get('device-message').textContent,'USB disconnected');
+console.log('OK: valid/invalid readings, absolute humidity, UI updates, stale data and USB disconnection.');

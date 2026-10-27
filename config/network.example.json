@@ -1,5 +1,5 @@
 {
   "hostname": "esp32-stanza.local",
   "ip": "",
-  "token": "INSERISCI_LO_STESSO_TOKEN_DEL_FIRMWARE"
+  "token": "YOUR_RANDOM_DEVICE_TOKEN"
 }
