@@ -1,39 +1,39 @@
-# Collegamenti hardware
+# Hardware setup
 
-## Componenti
+## Components
 
-- ESP32 Dev Module classico, basato su ESP32-WROOM-32.
-- Modulo DHT11 a tre pin, marcati `S`, `+` e `−`.
-- Breadboard e tre cavetti jumper.
-- Cavo USB dati per il caricamento; caricatore USB o power bank per l’uso autonomo.
+- Classic ESP32 Dev Module based on ESP32-WROOM-32.
+- Three-pin DHT11 module labeled `S`, `+` and `−`.
+- Breadboard and three jumper wires.
+- USB data cable for uploading; USB power adapter or power bank for autonomous operation.
 
-## Schema usato da STANZA
+## Wiring
 
-| DHT11 | ESP32 | Colore del montaggio di riferimento |
+| DHT11 pin | ESP32 pin | Reference wire color |
 |---|---|---|
-| `+` / VCC | `3V3` | Rosso |
-| `−` / GND | `GND` | Nero |
-| `S` / DATA | `D18` / GPIO18 | Giallo |
+| `+` / VCC | `3V3` | Red |
+| `−` / GND | `GND` | Black |
+| `S` / DATA | `D18` / GPIO18 | Yellow |
 
 ```text
-ESP32                    Modulo DHT11
+ESP32                    DHT11 module
 3V3 ──────────────────── + / VCC
 GND ──────────────────── − / GND
 D18 ──────────────────── S / DATA
 ```
 
-Scollega l’alimentazione prima di spostare i fili. Conta la scritta sul pin, non il colore del cavetto. Questo schema riguarda il modulo a tre pin usato nel progetto; per un DHT11 nudo a quattro pin occorre verificare anche il pull-up del segnale.
+Disconnect power before changing wiring. Follow pin labels rather than wire colors. This diagram applies to the three-pin module used by the project. A bare four-pin DHT11 also requires checking the data-line pull-up arrangement.
 
-Non serve un display separato: STANZA mostra le misure nel browser.
+A separate display is not required; readings are shown in the browser.
 
-## Preparazione del firmware
+## Firmware prerequisites
 
-Nel Board Manager di Arduino IDE installa **esp32 by Espressif Systems 3.3.12** e seleziona **ESP32 Dev Module**. Dal Library Manager installa:
+In Arduino IDE's Boards Manager, install **esp32 by Espressif Systems 3.3.12** and select **ESP32 Dev Module**. Install these libraries:
 
-- **DHT sensor library**, versione **1.4.6**, di Adafruit.
-- **Adafruit Unified Sensor**, versione **1.1.15**.
+- **DHT sensor library 1.4.6**, by Adafruit.
+- **Adafruit Unified Sensor 1.1.15**.
 
-In alternativa, con Arduino CLI:
+Alternatively, use Arduino CLI:
 
 ```sh
 arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
@@ -41,23 +41,23 @@ arduino-cli core install esp32:esp32@3.3.12 --additional-urls https://espressif.
 arduino-cli lib install "DHT sensor library@1.4.6" "Adafruit Unified Sensor@1.1.15"
 ```
 
-Il progetto usa la tabella partizioni standard ESP32 da 4 MB, con partizione filesystem da `0x160000` byte all’indirizzo `0x290000`. LittleFS usa questa partizione per il registratore.
+The firmware uses the standard 4 MB ESP32 partition layout, with a `0x160000`-byte filesystem partition at `0x290000`. LittleFS stores the circular log there.
 
-Copia il file delle credenziali di esempio, configura Wi-Fi e token e segui i comandi di compilazione del [README](../README.md#3-configura-la-scheda).
+Copy the example secrets file, configure Wi-Fi and the device token, then follow the [firmware upload instructions](../README.md#2-configure-and-upload-the-firmware).
 
-## Collocazione del sensore
+## Sensor placement
 
-Tieni il DHT11 lontano dal calore della scheda, dai termosifoni, dal sole diretto e dagli spifferi. Misura l’aria nel punto in cui si trova: la posizione influenza il grafico.
+Keep the DHT11 away from direct sunlight, radiators, drafts and heat from the ESP32. It measures air at its location, so placement affects the recorded trend.
 
-Con l’ESP32 alimentato dal caricatore, il PC non serve alla raccolta dei campioni. Il PC serve per visualizzare la pagina e importare lo storico.
+With the ESP32 powered from a USB adapter, the computer is not required for recording. It is required to display the dashboard and import samples.
 
-## Diagnosi rapida
+## Troubleshooting
 
-| Sintomo | Controllo |
+| Symptom | Check |
 |---|---|
-| Scheda non rilevata via USB | Verifica che il cavo trasporti dati e che il driver USB sia installato. |
-| Porta occupata | Chiudi il Serial Monitor e gli altri programmi collegati alla stessa porta. |
-| Più schede rilevate | Imposta `STANZA_SERIAL_PORT`. |
-| Sensore non risponde | Controlla `S → D18`, `+ → 3V3`, `− → GND`. |
-| Wi-Fi non disponibile | Controlla rete a 2,4 GHz, credenziali e raggiungibilità dal PC. |
-| Diretta presente ma diario non si sincronizza | Controlla `storage/network.json` e che il token coincida con `DEVICE_TOKEN`. |
+| Device not detected over USB | Use a data cable and verify the USB serial driver. |
+| Port busy | Close the Arduino Serial Monitor and other programs using the port. |
+| Multiple USB boards detected | Set `CLIMATE_SERIAL_PORT`. |
+| Sensor not responding | Check `S → D18`, `+ → 3V3`, `− → GND`. |
+| Wi-Fi unavailable | Check the 2.4 GHz network, credentials and reachability from the computer. |
+| Live readings work but history does not sync | Check `storage/network.json` and confirm its token matches `DEVICE_TOKEN`. |

@@ -1,170 +1,164 @@
 <div align="center">
 
-# STANZA
+# ESP32 Room Climate Monitor
 
-### Il clima, qui dentro.
+Temperature and humidity monitoring with autonomous logging and a local web dashboard.
 
-Un sensore sulla scrivania. Il mondo fuori dalla finestra.<br>
-Un diario per capire cosa cambia.
-
-[![Checks](https://github.com/lsvt-commits/stanza/actions/workflows/checks.yml/badge.svg)](https://github.com/lsvt-commits/stanza/actions/workflows/checks.yml)
+[![Checks](https://github.com/lsvt-commits/esp32-room-climate-monitor/actions/workflows/checks.yml/badge.svg)](https://github.com/lsvt-commits/esp32-room-climate-monitor/actions/workflows/checks.yml)
 ![ESP32](https://img.shields.io/badge/hardware-ESP32-392e25?style=flat-square)
-![DHT11](https://img.shields.io/badge/sensore-DHT11-a94123?style=flat-square)
+![DHT11](https://img.shields.io/badge/sensor-DHT11-a94123?style=flat-square)
 ![Node.js](https://img.shields.io/badge/Node.js-22%2B-57734c?style=flat-square)
-![Local first](https://img.shields.io/badge/dati-locali-b5a68c?style=flat-square)
+![Local storage](https://img.shields.io/badge/storage-local-b5a68c?style=flat-square)
 
-[Il progetto](#il-progetto) · [Come funziona](#come-funziona) · [Avvio](#avvio) · [Hardware](docs/hardware.md) · [Architettura](docs/architecture.md)
+[Overview](#overview) · [Setup](#setup) · [Hardware](docs/hardware.md) · [Architecture](docs/architecture.md) · [Tests](#tests)
 
 </div>
 
-![STANZA: misure della stanza, meteo esterno e diario della temperatura](docs/images/desktop.png)
+![Desktop dashboard with indoor readings, outdoor weather and temperature history](docs/images/desktop.png)
 
-## Il progetto
+## Overview
 
-STANZA è un piccolo osservatorio domestico: un **ESP32 con un DHT11** misura temperatura e umidità della stanza; un’applicazione locale raccoglie i dati, li mette a confronto con il meteo esterno e li conserva in un diario navigabile.
+An ESP32 reads a DHT11 sensor and records temperature and relative humidity to flash memory. A local Node.js server imports the readings, stores them by date and provides a responsive dashboard at `localhost:8000`.
 
-Nasce da domande molto concrete: *la stanza sta davvero iniziando a scaldarsi? Cosa succede durante la notte? L’umidità scende dopo aver aperto la finestra?* Il grafico serve a seguire questi cambiamenti nel tempo.
+The device keeps recording while the computer is off. When the server starts again, it retrieves missing samples over Wi-Fi. Outdoor weather from Open-Meteo provides context for changes in indoor conditions.
 
-L’interfaccia riprende carta, strumenti da banco e display ambrati. HTML, CSS e JavaScript vanilla, con un server Node.js senza dipendenze di produzione.
-
-### Cosa fa
-
-| | |
+| Feature | Description |
 |---|---|
-| **Dentro** | Temperatura e umidità reali, aggiornate ogni 2,5 secondi, con stato del sensore e consigli contestuali. |
-| **Fuori** | Meteo della città scelta tramite Open-Meteo, con temperatura, umidità, vento e minime/massime. |
-| **Confronto** | Differenza di temperatura e confronto dell’umidità assoluta: due percentuali relative, da sole, non raccontano tutta la storia. |
-| **Diario** | Data e ora selezionabili, finestre di 1/6/24 ore, minimo, massimo, variazione e lettura dei singoli campioni. |
-| **PC spento** | La scheda conserva un campione ogni 30 secondi nella propria flash, anche senza il programma sul PC. |
-| **Al ritorno** | STANZA importa automaticamente i campioni mancanti via Wi-Fi, senza duplicarli. |
-| **Esportazione** | CSV del periodo visualizzato e cartolina PNG della lettura attuale. |
+| Live readings | Temperature and relative humidity every 2.5 seconds. Wi-Fi is preferred, with USB as a fallback. |
+| Autonomous logging | One sample every 30 seconds, stored in a persistent circular buffer on the ESP32. |
+| Synchronization | Automatic Wi-Fi import with stable sample identifiers to prevent duplicates. |
+| Local history | Daily JSON files without automatic expiration, date/time selection and 1/6/24-hour views. |
+| Chart inspection | Mouse, touch, keyboard and button controls. Gaps longer than 90 seconds are not interpolated. |
+| Outdoor comparison | Current weather, temperature difference and absolute humidity comparison. |
+| Export | CSV for the selected interval and a PNG snapshot of the current reading. |
+| Languages | English by default, with an EN/IT selector and a saved browser preference. |
 
-## Un diario da esplorare
+## Measurement history
 
-![Diario di STANZA con selezione del periodo, misure e grafico](docs/images/diary.png)
+![History controls and temperature chart with minimum, maximum and net change](docs/images/diary.png)
 
-Scegli un giorno, imposta l’ora iniziale e spostati con le frecce. Sul grafico puoi usare mouse, tocco, tastiera o pulsanti per leggere una misura precisa. Le interruzioni più lunghe di 90 secondi rimangono visibili: il grafico non inventa misure nei vuoti.
+Select a date and starting time, then move between intervals with the navigation buttons. The chart displays minimum, maximum and net change for the selected period.
 
 <details>
-<summary><strong>Anche su schermi piccoli</strong></summary>
+<summary><strong>Mobile interface</strong></summary>
 
 <br>
 <div align="center">
-<img src="docs/images/mobile.png" alt="STANZA su telefono: navigazione tra sezioni e letture del sensore" width="320">
+<img src="docs/images/mobile.png" alt="English dashboard on a phone with section navigation and sensor readings" width="320">
 </div>
 
-Layout a colonna, aree di tocco da almeno 44 px, grafico che ricalcola la propria geometria, dialoghi scorrevoli e navigazione rapida Dentro/Fuori/Diario solo sotto gli 801 px. Il layout è stato controllato nel browser da 320 a 1440 px e anche in orizzontale.
+The layout has been checked from 320 to 1440 px and in landscape orientation. Touch targets are at least 44 px. The SVG chart recalculates its geometry instead of scaling down desktop labels. Indoor/Outdoor/History links appear only in single-column layouts.
 
-Il server ascolta soltanto sul PC: `localhost` sul telefono indica il telefono stesso. La versione responsive non abilita automaticamente l’accesso dalla rete domestica.
+The server listens on the computer's loopback interface. Responsive layout does not enable network access: `localhost` on a phone refers to the phone itself.
 
 </details>
 
-## Come funziona
+## Architecture
 
 ```mermaid
 flowchart LR
-    A[DHT11] -->|lettura ogni 2,5 s| B[ESP32]
-    B -->|campione ogni 30 s| C[Flash LittleFS · circa 7 giorni]
-    B -->|Wi-Fi o USB · diretta| D[Server Node.js sul PC]
-    C -->|recupero via Wi-Fi| D
-    E[Open-Meteo] -->|meteo esterno| D
-    D --> F[Diario JSON sul PC]
-    D -->|Server-Sent Events| G[Browser · localhost:8000]
+    A[DHT11] -->|read every 2.5 s| B[ESP32]
+    B -->|sample every 30 s| C[LittleFS flash buffer]
+    B -->|Wi-Fi or USB live readings| D[Local Node.js server]
+    C -->|Wi-Fi history import| D
+    E[Open-Meteo] --> D
+    D --> F[Daily JSON archive]
+    D -->|Server-Sent Events| G[Browser dashboard]
 ```
 
-La memoria della scheda è **circolare**: contiene fino a **20.160 campioni**, circa sette giorni a intervalli di 30 secondi. Poi riutilizza lo spazio dei campioni più vecchi. Sul PC, invece, il diario non ha una scadenza automatica.
+The device buffer holds **20,160 samples**, approximately **seven days** at 30-second intervals. Once full, it overwrites the oldest samples. Start the server at least once every seven days to import them before they are overwritten.
 
-Per conservare l’intera serie, avvia STANZA almeno ogni sette giorni e lascia terminare la sincronizzazione. L’ESP32 deve restare alimentato; quando viene tolta corrente, i campioni già scritti rimangono in memoria, ma non vengono raccolte nuove misure.
+The ESP32 must remain powered to collect data. Samples already written to flash survive a restart. The computer archive has no automatic retention limit. History synchronization requires Wi-Fi and the configured device token; USB provides an alternative for live readings.
 
-La sincronizzazione dello storico richiede il Wi-Fi e il token configurato. L’USB è un’alternativa per le letture in diretta.
+## Setup
 
-## Avvio
+### Requirements
 
-### 1. Requisiti
+- Node.js **22 or later** and npm.
+- Python 3 with `pyserial` for USB communication.
+- A classic ESP32 Dev Module and a three-pin DHT11 module.
+- Arduino IDE or Arduino CLI with **ESP32 core 3.3.12**, **DHT sensor library 1.4.6** and **Adafruit Unified Sensor 1.1.15**.
 
-- Node.js **22 o successivo** e npm.
-- Python 3 con `pyserial` per il collegamento USB.
-- ESP32 classico e modulo DHT11 a tre pin.
-- Arduino IDE o Arduino CLI con core **ESP32 3.3.12** e librerie **DHT sensor library 1.4.6** e **Adafruit Unified Sensor 1.1.15**.
-
-### 2. Clona e installa
+### 1. Install
 
 ```sh
-git clone https://github.com/lsvt-commits/stanza.git
-cd stanza
+git clone https://github.com/lsvt-commits/esp32-room-climate-monitor.git
+cd esp32-room-climate-monitor
 npm ci
 python -m pip install -r requirements.txt
 ```
 
-Su macOS/Linux il comando Python potrebbe essere `python3`. Il server usa `python3` su questi sistemi e `python` su Windows; puoi indicare un interprete diverso con `STANZA_PYTHON`.
+Use `python3` where required. The server uses `python3` on macOS/Linux and `python` on Windows. Set `CLIMATE_PYTHON` to select another interpreter.
 
-### 3. Configura la scheda
+### 2. Configure and upload the firmware
 
-Copia `room_climate/wifi_secrets.example.h` in `room_climate/wifi_secrets.h` e inserisci nome della rete, password e un token casuale. Puoi generare il token con:
+Copy `room_climate/wifi_secrets.example.h` to `room_climate/wifi_secrets.h`. Set the Wi-Fi SSID, password and a random device token. Generate a token with:
 
 ```sh
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Poi compila e carica il firmware:
+Compile and upload:
 
 ```sh
 arduino-cli compile --fqbn esp32:esp32:esp32 room_climate
 arduino-cli upload --fqbn esp32:esp32:esp32 --port COM3 room_climate
 ```
 
-Sostituisci `COM3` con la porta della tua scheda. [Collegamenti e preparazione dell’hardware →](docs/hardware.md)
+Replace `COM3` with your device's port. See [hardware setup](docs/hardware.md) for wiring and library installation.
 
-### 4. Collega il programma al dispositivo
+### 3. Configure synchronization
 
-Crea la cartella `storage/` e copia `config/network.example.json` in `storage/network.json`:
+Create `storage/` and copy `config/network.example.json` to `storage/network.json`:
 
 ```json
 {
   "hostname": "esp32-stanza.local",
   "ip": "",
-  "token": "LO_STESSO_TOKEN_INSERITO_NEL_FIRMWARE"
+  "token": "THE_SAME_RANDOM_TOKEN_AS_THE_FIRMWARE"
 }
 ```
 
-Il dispositivo viene cercato tramite mDNS; se la tua rete non lo risolve, puoi indicare il suo IP privato nel campo `ip`. PC e scheda devono raggiungersi sulla stessa rete. Alla prima installazione verifica lo stato della memoria nella pagina: se non è pronta, consulta la sezione [inizializzazione](docs/architecture.md#prima-inizializzazione-della-memoria).
+The hostname is retained for compatibility with installed firmware. The server discovers the device through mDNS. If discovery is unavailable, enter the device's private IP in `ip`. The computer and device must be reachable on the same network.
 
-### 5. Avvia STANZA
+If device storage is not ready, follow the [first-time initialization procedure](docs/architecture.md#first-time-storage-initialization).
+
+### 4. Start
 
 ```sh
 npm start
 ```
 
-Apri **[http://localhost:8000](http://localhost:8000)**. Quando appare “Archivio sincronizzato”, i campioni disponibili sulla scheda sono stati importati.
+Open **[http://localhost:8000](http://localhost:8000)**. “History synchronized” indicates that the available device samples have been imported.
 
-Per l’USB, chiudi il Serial Monitor di Arduino. Se sono collegate più schede, specifica quella corretta:
+For USB, close the Arduino Serial Monitor. If several USB boards are connected, select the correct port:
 
 ```powershell
-# PowerShell
-$env:STANZA_SERIAL_PORT = "COM3"
+# Windows PowerShell
+$env:CLIMATE_SERIAL_PORT = "COM3"
 npm start
 ```
 
 ```sh
 # macOS / Linux
-STANZA_SERIAL_PORT=/dev/ttyUSB0 npm start
+CLIMATE_SERIAL_PORT=/dev/ttyUSB0 npm start
 ```
 
-## Dati e configurazione
+## Data and configuration
 
-| Percorso | Contenuto |
+| Path | Contents |
 |---|---|
-| `storage/diary/AAAA-MM-GG.json` | Campioni archiviati per giorno, nel fuso Europe/Rome. |
-| `storage/sync.json` | Posizione dell’ultima importazione dal dispositivo. |
-| `storage/settings.json` | Città selezionata. |
-| `storage/network.json` | Configurazione locale e token della scheda. |
-| `room_climate/wifi_secrets.h` | Credenziali Wi-Fi e token usati dal firmware. |
+| `storage/diary/YYYY-MM-DD.json` | Daily samples, grouped in the Europe/Rome time zone. |
+| `storage/sync.json` | Last imported device sequence. |
+| `storage/settings.json` | Selected weather location. |
+| `storage/network.json` | Device address and token. |
+| `room_climate/wifi_secrets.h` | Wi-Fi credentials and firmware token. |
 
-**Credenziali, storico personale e binari compilati sono esclusi da Git.** I binari del firmware possono contenere i valori di `wifi_secrets.h`: non vanno pubblicati. Nel repository ci sono soltanto file di esempio.
+Credentials, personal history and compiled firmware are excluded from Git. Firmware binaries may contain the values from `wifi_secrets.h` and should not be published.
 
-Le misure della stanza non vengono inviate a un servizio cloud. Il meteo esterno richiede richieste a Open-Meteo con le coordinate della città scelta. L’interfaccia carica i font da Google Fonts, con caratteri di sistema come alternativa.
+Indoor measurements remain on the device and computer. Weather requests send the selected city's coordinates to Open-Meteo. The interface loads fonts from Google Fonts, with system-font fallbacks. Language preference is stored in the browser.
 
-## Verifiche
+## Tests
 
 ```sh
 npm run check
@@ -172,36 +166,27 @@ npm test
 npm run test:ui
 ```
 
-I test coprono validazione delle letture, calcolo dell’umidità assoluta, archivio giornaliero, importazioni ripetute, recupero da backup, date Europe/Rome, mDNS, navigazione del diario e consigli contestuali. GitHub Actions li esegue su Linux e Windows.
+Tests cover reading validation, absolute humidity, daily storage, repeated imports, backup recovery, Europe/Rome dates, mDNS, history navigation, language switching and contextual guidance. GitHub Actions runs the checks on Linux and Windows.
 
-La raccolta autonoma, la conservazione dopo un riavvio e il recupero nel diario sono stati verificati anche sull’ESP32 reale. I test automatici non sostituiscono il controllo dei collegamenti e del sensore.
+Autonomous recording, persistence across a device restart and subsequent import have also been checked on physical hardware. Automated tests do not replace wiring and sensor checks.
 
-## Struttura
+## Project structure
 
 ```text
-stanza/
-├── room_climate/       # Firmware ESP32 e registratore persistente
-├── public/             # Interfaccia, grafico, consigli e cartolina
-├── tools/              # Ponte USB, archivio, mDNS e test
-├── config/             # Esempio di configurazione della rete
-├── docs/               # Hardware, architettura e screenshot
-├── server.cjs          # API locali, sincronizzazione e flusso eventi
-└── storage/            # Creato localmente, escluso da Git
+esp32-room-climate-monitor/
+├── room_climate/       # ESP32 firmware and persistent logger
+├── public/             # Dashboard, translations, chart and PNG export
+├── tools/              # USB bridge, history store, mDNS and tests
+├── config/             # Example device configuration
+├── docs/               # Hardware, architecture and screenshots
+├── server.cjs          # Local API, synchronization and event stream
+└── storage/            # Created locally; excluded from Git
 ```
 
-## Limiti da conoscere
+## Limitations
 
-- Il DHT11 è un sensore indicativo: piccoli decimali non equivalgono alla stessa precisione reale.
-- I consigli descrivono condizioni domestiche generali; STANZA non controlla termosifoni o deumidificatori.
-- Senza un’ora affidabile, i campioni del boot corrente possono essere ricostruiti alla sincronizzazione. Quelli senza data certa di un avvio precedente non ricevono timestamp inventati.
-- La memoria della scheda non sostituisce un backup del diario sul PC.
-- Il server è pensato per uso locale e non è configurato per l’esposizione pubblica su Internet.
-
-<div align="center">
-
----
-
-**STANZA** · Costruito un campione alla volta.<br>
-[lsvt-commits](https://github.com/lsvt-commits)
-
-</div>
+- The DHT11 has limited accuracy. Decimal places do not imply equivalent measurement precision.
+- Guidance is general information about indoor conditions. The application does not control heating or dehumidifiers.
+- Samples from the current boot can be dated after clock synchronization. Undated samples from an earlier boot are not assigned invented timestamps.
+- Device flash is a temporary buffer, not a replacement for computer backups.
+- The server is intended for local use and is not configured for public Internet exposure.
