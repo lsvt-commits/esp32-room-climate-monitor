@@ -1,0 +1,18 @@
+{
+  "name": "stanza",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Un osservatorio domestico con ESP32, DHT11 e un diario locale del clima.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.cjs",
+    "check": "node --check server.cjs && node --check public/app.js && node --check public/advice.js",
+    "test": "node tools/check.cjs && node tools/check-diary.cjs && node tools/check-mdns.cjs",
+    "test:ui": "node tools/check-diary-ui.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}
